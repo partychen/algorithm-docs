@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { Marked } = require('marked');
 const hljs = require('highlight.js');
+const matter = require('gray-matter');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -16,9 +17,10 @@ function slugifyHeading(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-function extractTitle(content, fallback) {
-  const firstLine = content.split('\n').find(line => line.startsWith('#'));
-  return firstLine ? firstLine.replace(/^#+\s*/, '') : fallback;
+function parseDoc(filePath) {
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  const { data: frontmatter, content } = matter(raw);
+  return { frontmatter, content, raw };
 }
 
 function extractToc(content) {
@@ -68,31 +70,17 @@ function getDocInfo(filePath) {
 function getDocs() {
   return listMarkdownFiles(DOCS_DIR)
     .map(filePath => {
-      const raw = fs.readFileSync(filePath, 'utf-8');
+      const { frontmatter, content } = parseDoc(filePath);
       const info = getDocInfo(filePath);
       return {
         ...info,
-        title: extractTitle(raw, info.basename),
-        toc: extractToc(raw)
+        title: (frontmatter.title || info.basename).trim(),
+        subtitle: (frontmatter.subtitle || '').trim(),
+        order: frontmatter.order ?? Infinity,
+        toc: extractToc(content)
       };
     })
-    .sort((a, b) => {
-      // 提取文件名中的数字进行排序
-      const extractNumber = (slug) => {
-        const basename = slug.split('/').pop();
-        const match = basename.match(/^(\d+)\./);
-        return match ? parseInt(match[1], 10) : 999999; // 没有数字的放到最后
-      };
-
-      const numA = extractNumber(a.slug);
-      const numB = extractNumber(b.slug);
-
-      // 先按数字排序，数字相同则按文件名字母顺序
-      if (numA !== numB) {
-        return numA - numB;
-      }
-      return a.slug.localeCompare(b.slug, 'zh-CN');
-    });
+    .sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug, 'zh-CN'));
 }
 
 function normalizeDocSlug(input) {
@@ -166,13 +154,14 @@ app.get('/api/doc', (req, res) => {
     return res.status(404).json({ error: 'Document not found' });
   }
 
-  const raw = fs.readFileSync(filePath, 'utf-8');
+  const { frontmatter, content, raw } = parseDoc(filePath);
   const info = getDocInfo(filePath);
   res.json({
     ...info,
-    title: extractTitle(raw, info.basename),
-    html: marked.parse(raw),
-    toc: extractToc(raw),
+    title: (frontmatter.title || info.basename).trim(),
+    subtitle: (frontmatter.subtitle || '').trim(),
+    html: marked.parse(content),
+    toc: extractToc(content),
     raw
   });
 });
@@ -186,7 +175,7 @@ app.get('/api/search', (req, res) => {
 
   const results = [];
   for (const filePath of listMarkdownFiles(DOCS_DIR)) {
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const { frontmatter, content } = parseDoc(filePath);
     const lowerContent = content.toLowerCase();
     const matchIndex = lowerContent.indexOf(query);
     if (matchIndex === -1) continue;
@@ -201,7 +190,7 @@ app.get('/api/search', (req, res) => {
     results.push({
       slug: info.slug,
       section: info.section,
-      title: extractTitle(content, info.basename),
+      title: (frontmatter.title || info.basename).trim(),
       snippet,
       matchIndex
     });
