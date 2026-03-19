@@ -1115,6 +1115,27 @@ function buildDocTree(items) {
   return sortTreeNodes(root.children);
 }
 
+function getDocOrderValue(doc) {
+  const value = Number(doc.order);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getSlugNumberParts(slug) {
+  const basename = slug.split('/').pop() || '';
+  const match = basename.match(/^(\d+(?:\.\d+)*)/);
+  return match ? match[1].split('.').map(part => Number.parseInt(part, 10)) : [];
+}
+
+function compareSlugNumberParts(aParts, bParts) {
+  const minLength = Math.min(aParts.length, bParts.length);
+  for (let i = 0; i < minLength; i += 1) {
+    if (aParts[i] !== bParts[i]) {
+      return aParts[i] - bParts[i];
+    }
+  }
+  return aParts.length - bParts.length;
+}
+
 function sortTreeNodes(nodes) {
   return nodes
     .slice()
@@ -1122,20 +1143,23 @@ function sortTreeNodes(nodes) {
       if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
 
       if (a.type === 'doc' && b.type === 'doc') {
-        // 对文档按文件名中的数字排序
-        const extractNumber = (slug) => {
-          const basename = slug.split('/').pop();
-          const match = basename.match(/^(\d+)\./);
-          return match ? parseInt(match[1], 10) : 999999; // 没有数字的放到最后
-        };
+        const orderA = getDocOrderValue(a.doc);
+        const orderB = getDocOrderValue(b.doc);
 
-        const numA = extractNumber(a.doc.slug);
-        const numB = extractNumber(b.doc.slug);
-
-        if (numA !== numB) {
-          return numA - numB;
+        if (orderA !== null || orderB !== null) {
+          if (orderA === null) return 1;
+          if (orderB === null) return -1;
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
         }
-        // 数字相同则按标题字母顺序
+
+        const slugCompare = compareSlugNumberParts(
+          getSlugNumberParts(a.doc.slug),
+          getSlugNumberParts(b.doc.slug)
+        );
+        if (slugCompare !== 0) return slugCompare;
+
         return cleanTitle(a.doc.title).localeCompare(cleanTitle(b.doc.title), 'zh-CN');
       }
 
