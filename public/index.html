@@ -384,16 +384,55 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.nav-folder-label:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.nav-folder-toggle {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+  margin-right: 4px;
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.nav-folder-toggle::after {
+  content: '▶';
+}
+
+.nav-folder.expanded .nav-folder-toggle::after {
+  content: '▼';
 }
 
 .nav-folder-icon {
   width: 22px;
   text-align: center;
   opacity: 0.85;
+  transition: opacity 0.2s ease;
 }
 
 .nav-folder-children {
   position: relative;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+.nav-folder.expanded .nav-folder-children {
+  max-height: 1000px;
+  opacity: 1;
 }
 
 /* Sidebar footer */
@@ -1081,6 +1120,26 @@ function sortTreeNodes(nodes) {
     .slice()
     .sort((a, b) => {
       if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+
+      if (a.type === 'doc' && b.type === 'doc') {
+        // 对文档按文件名中的数字排序
+        const extractNumber = (slug) => {
+          const basename = slug.split('/').pop();
+          const match = basename.match(/^(\d+)\./);
+          return match ? parseInt(match[1], 10) : 999999; // 没有数字的放到最后
+        };
+
+        const numA = extractNumber(a.doc.slug);
+        const numB = extractNumber(b.doc.slug);
+
+        if (numA !== numB) {
+          return numA - numB;
+        }
+        // 数字相同则按标题字母顺序
+        return cleanTitle(a.doc.title).localeCompare(cleanTitle(b.doc.title), 'zh-CN');
+      }
+
+      // 文件夹按名称字母排序
       const aLabel = a.type === 'folder' ? a.name : cleanTitle(a.doc.title);
       const bLabel = b.type === 'folder' ? b.name : cleanTitle(b.doc.title);
       return aLabel.localeCompare(bLabel, 'zh-CN');
@@ -1093,9 +1152,11 @@ function sortTreeNodes(nodes) {
 function renderTree(nodes, depth = 0) {
   return nodes.map(node => {
     if (node.type === 'folder') {
+      const folderId = `folder-${node.path.replace(/[^a-zA-Z0-9]/g, '-')}`;
       return `
-        <div class="nav-folder">
-          <div class="nav-folder-label" style="--depth:${depth}">
+        <div class="nav-folder" data-folder-id="${folderId}">
+          <div class="nav-folder-label" style="--depth:${depth}" onclick="toggleFolder('${folderId}')">
+            <span class="nav-folder-toggle"></span>
             <span class="nav-folder-icon">📁</span>
             <span>${escapeHtml(formatFolderName(node.name))}</span>
           </div>
@@ -1124,6 +1185,9 @@ function renderNav() {
   nav.querySelectorAll('.nav-item[data-slug]').forEach(el => {
     el.addEventListener('click', () => loadDoc(decodeURIComponent(el.dataset.slug)));
   });
+
+  // Restore folder states after rendering
+  setTimeout(restoreFolderStates, 0);
 }
 
 function setActiveNav(slug) {
@@ -1378,6 +1442,41 @@ function copyCode(btn) {
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
     }, 1500);
   });
+}
+
+// ═══════════════════════════════════════════════════
+//  Folder collapse functionality
+// ═══════════════════════════════════════════════════
+function toggleFolder(folderId) {
+  const folder = document.querySelector(`[data-folder-id="${folderId}"]`);
+  if (!folder) return;
+
+  folder.classList.toggle('expanded');
+
+  // Save folder states to localStorage
+  saveFolderStates();
+}
+
+function saveFolderStates() {
+  const expandedFolders = [];
+  document.querySelectorAll('.nav-folder.expanded').forEach(folder => {
+    expandedFolders.push(folder.dataset.folderId);
+  });
+  localStorage.setItem('expanded-folders', JSON.stringify(expandedFolders));
+}
+
+function restoreFolderStates() {
+  try {
+    const expandedFolders = JSON.parse(localStorage.getItem('expanded-folders') || '[]');
+    expandedFolders.forEach(folderId => {
+      const folder = document.querySelector(`[data-folder-id="${folderId}"]`);
+      if (folder) {
+        folder.classList.add('expanded');
+      }
+    });
+  } catch (e) {
+    console.warn('Failed to restore folder states:', e);
+  }
 }
 </script>
 </body>

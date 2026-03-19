@@ -76,7 +76,23 @@ function getDocs() {
         toc: extractToc(raw)
       };
     })
-    .sort((a, b) => a.slug.localeCompare(b.slug, 'zh-CN'));
+    .sort((a, b) => {
+      // 提取文件名中的数字进行排序
+      const extractNumber = (slug) => {
+        const basename = slug.split('/').pop();
+        const match = basename.match(/^(\d+)\./);
+        return match ? parseInt(match[1], 10) : 999999; // 没有数字的放到最后
+      };
+
+      const numA = extractNumber(a.slug);
+      const numB = extractNumber(b.slug);
+
+      // 先按数字排序，数字相同则按文件名字母顺序
+      if (numA !== numB) {
+        return numA - numB;
+      }
+      return a.slug.localeCompare(b.slug, 'zh-CN');
+    });
 }
 
 function normalizeDocSlug(input) {
