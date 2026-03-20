@@ -9,6 +9,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const DOCS_DIR = path.join(__dirname, 'docs');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const FOLDERS_META_FILENAME = '_folders.json';
 
 function slugifyHeading(text) {
   return text
@@ -37,10 +38,6 @@ function extractToc(content) {
   return toc;
 }
 
-function toPosixPath(filePath) {
-  return filePath.split(path.sep).join('/');
-}
-
 function listMarkdownFiles(dirPath) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   return entries.flatMap(entry => {
@@ -53,18 +50,79 @@ function listMarkdownFiles(dirPath) {
 }
 
 function getDocInfo(filePath) {
-  const relativeFilePath = toPosixPath(path.relative(DOCS_DIR, filePath));
-  const slug = relativeFilePath.replace(/\.md$/i, '');
+  const slug = path.relative(DOCS_DIR, filePath).split(path.sep).join('/').replace(/\.md$/i, '');
   const section = path.posix.dirname(slug);
 
   return {
     slug,
-    filename: path.basename(filePath),
-    relativeFilePath,
     basename: path.basename(filePath, '.md'),
-    section: section === '.' ? '' : section,
-    segments: slug.split('/').filter(Boolean)
+    section: section === '.' ? '' : section
   };
+}
+
+function getDocMeta(frontmatter, basename) {
+  const meta = {
+    title: (frontmatter.title || basename).trim(),
+    subtitle: (frontmatter.subtitle || '').trim()
+  };
+  if (typeof frontmatter.icon === 'string' && frontmatter.icon.trim()) {
+    meta.icon = frontmatter.icon.trim();
+  }
+  return meta;
+}
+
+function normalizeFolderMeta(relativePath, value) {
+  const meta = { path: relativePath };
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    meta.order = value;
+    return meta;
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Folder metadata for "${relativePath}" must be a number or object.`);
+  }
+
+  if (typeof value.title === 'string' && value.title.trim()) {
+    meta.title = value.title.trim();
+  }
+
+  const order = Number(value.order);
+  if (Number.isFinite(order)) {
+    meta.order = order;
+  }
+
+  if (typeof value.icon === 'string' && value.icon.trim()) {
+    meta.icon = value.icon.trim();
+  }
+
+  return meta;
+}
+
+function getFolderMetaMap() {
+  const metaPath = path.join(DOCS_DIR, FOLDERS_META_FILENAME);
+  if (!fs.existsSync(metaPath)) {
+    return {};
+  }
+
+  const raw = fs.readFileSync(metaPath, 'utf-8');
+  const data = JSON.parse(raw);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error(`${FOLDERS_META_FILENAME} must be a JSON object.`);
+  }
+
+  return Object.entries(data).reduce((acc, [folderPath, value]) => {
+    const normalizedPath = String(folderPath)
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '');
+    if (!normalizedPath) {
+      return acc;
+    }
+
+    acc[normalizedPath] = normalizeFolderMeta(normalizedPath, value);
+    return acc;
+  }, {});
 }
 
 function getDocs() {
@@ -74,13 +132,19 @@ function getDocs() {
       const info = getDocInfo(filePath);
       return {
         ...info,
-        title: (frontmatter.title || info.basename).trim(),
-        subtitle: (frontmatter.subtitle || '').trim(),
+        ...getDocMeta(frontmatter, info.basename),
         order: frontmatter.order ?? Infinity,
         toc: extractToc(content)
       };
     })
     .sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug, 'zh-CN'));
+}
+
+function getDocsPayload() {
+  return {
+    docs: getDocs(),
+    folders: getFolderMetaMap()
+  };
 }
 
 function normalizeDocSlug(input) {
@@ -144,22 +208,27 @@ app.use('/static', express.static(PUBLIC_DIR));
 
 // ── API: list all docs ───────────────────────────────────────
 app.get('/api/docs', (req, res) => {
-  res.json(getDocs());
+  res.json(getDocsPayload());
 });
 
 // ── API: get single doc ──────────────────────────────────────
 app.get('/api/doc', (req, res) => {
   const filePath = resolveDocPath(req.query.path);
-  if (!filePath || !fs.existsSync(filePath)) {
+  if (!filePath) {
     return res.status(404).json({ error: 'Document not found' });
   }
 
-  const { frontmatter, content, raw } = parseDoc(filePath);
+  let frontmatter, content, raw;
+  try {
+    ({ frontmatter, content, raw } = parseDoc(filePath));
+  } catch {
+    return res.status(404).json({ error: 'Document not found' });
+  }
+
   const info = getDocInfo(filePath);
   res.json({
     ...info,
-    title: (frontmatter.title || info.basename).trim(),
-    subtitle: (frontmatter.subtitle || '').trim(),
+    ...getDocMeta(frontmatter, info.basename),
     html: marked.parse(content),
     toc: extractToc(content),
     raw
@@ -190,7 +259,7 @@ app.get('/api/search', (req, res) => {
     results.push({
       slug: info.slug,
       section: info.section,
-      title: (frontmatter.title || info.basename).trim(),
+      title: getDocMeta(frontmatter, info.basename).title,
       snippet,
       matchIndex
     });

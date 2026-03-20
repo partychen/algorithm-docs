@@ -411,7 +411,7 @@ body {
   content: '▶';
 }
 
-.nav-folder.expanded .nav-folder-toggle::after {
+.nav-folder.expanded > .nav-folder-label .nav-folder-toggle::after {
   content: '▼';
 }
 
@@ -430,7 +430,7 @@ body {
   opacity: 0;
 }
 
-.nav-folder.expanded .nav-folder-children {
+.nav-folder.expanded > .nav-folder-children {
   max-height: 1000px;
   opacity: 1;
 }
@@ -995,16 +995,10 @@ body {
 //  State
 // ═══════════════════════════════════════════════════
 let docs = [];
+let folderMeta = {};
 let currentSlug = null;
 let searchTimer = null;
 const APP_TITLE = '算法文档';
-
-const icons = {
-  'state-compression-dp-tutorial': '🧩',
-  'doubling-dp-tutorial': '⏫',
-  'monotonic-queue-dp-tutorial': '🚚',
-  'slope-dp-tutorial': '📈'
-};
 
 const SITE_BASE_PATH = (() => {
   const { pathname } = window.location;
@@ -1044,7 +1038,9 @@ async function init() {
   else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
 
   // Load docs list
-  docs = await getJson('api/docs');
+  const payload = await getJson('api/docs');
+  docs = Array.isArray(payload) ? payload : (payload.docs || []);
+  folderMeta = Array.isArray(payload) ? {} : (payload.folders || {});
   renderNav();
   document.getElementById('docCount').textContent = `${docs.length} 篇`;
 
@@ -1072,6 +1068,18 @@ function formatFolderName(name) {
   return name.replace(/[-_]+/g, ' ').trim() || name;
 }
 
+function getFolderMeta(path) {
+  return folderMeta[path] || null;
+}
+
+function getFolderLabel(node) {
+  return node.meta?.title || formatFolderName(node.name);
+}
+
+function getFolderIcon(node) {
+  return node.meta?.icon || '📁';
+}
+
 function cleanTitle(title) {
   let short = title
     .replace(/\r/g, '')
@@ -1086,8 +1094,7 @@ function cleanTitle(title) {
 }
 
 function getDocIcon(doc) {
-  const basename = doc.slug.split('/').pop();
-  return icons[doc.slug] || icons[basename] || '📄';
+  return doc.icon || '📄';
 }
 
 function buildDocTree(items) {
@@ -1103,8 +1110,16 @@ function buildDocTree(items) {
       currentPath = currentPath ? `${currentPath}/${name}` : name;
       let folder = current.children.find(node => node.type === 'folder' && node.name === name);
       if (!folder) {
-        folder = { type: 'folder', name, path: currentPath, children: [] };
+        folder = {
+          type: 'folder',
+          name,
+          path: currentPath,
+          meta: getFolderMeta(currentPath),
+          children: []
+        };
         current.children.push(folder);
+      } else if (!folder.meta) {
+        folder.meta = getFolderMeta(currentPath);
       }
       current = folder;
     });
@@ -1117,6 +1132,11 @@ function buildDocTree(items) {
 
 function getDocOrderValue(doc) {
   const value = Number(doc.order);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getFolderOrderValue(folder) {
+  const value = Number(folder.meta?.order);
   return Number.isFinite(value) ? value : null;
 }
 
@@ -1142,6 +1162,19 @@ function sortTreeNodes(nodes) {
     .sort((a, b) => {
       if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
 
+      if (a.type === 'folder' && b.type === 'folder') {
+        const orderA = getFolderOrderValue(a);
+        const orderB = getFolderOrderValue(b);
+
+        if (orderA !== null || orderB !== null) {
+          if (orderA === null) return 1;
+          if (orderB === null) return -1;
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+        }
+      }
+
       if (a.type === 'doc' && b.type === 'doc') {
         const orderA = getDocOrderValue(a.doc);
         const orderB = getDocOrderValue(b.doc);
@@ -1163,9 +1196,8 @@ function sortTreeNodes(nodes) {
         return cleanTitle(a.doc.title).localeCompare(cleanTitle(b.doc.title), 'zh-CN');
       }
 
-      // 文件夹按名称字母排序
-      const aLabel = a.type === 'folder' ? a.name : cleanTitle(a.doc.title);
-      const bLabel = b.type === 'folder' ? b.name : cleanTitle(b.doc.title);
+      const aLabel = a.type === 'folder' ? getFolderLabel(a) : cleanTitle(a.doc.title);
+      const bLabel = b.type === 'folder' ? getFolderLabel(b) : cleanTitle(b.doc.title);
       return aLabel.localeCompare(bLabel, 'zh-CN');
     })
     .map(node => node.type === 'folder'
@@ -1181,8 +1213,8 @@ function renderTree(nodes, depth = 0) {
         <div class="nav-folder" data-folder-id="${folderId}">
           <div class="nav-folder-label" style="--depth:${depth}" onclick="toggleFolder('${folderId}')">
             <span class="nav-folder-toggle"></span>
-            <span class="nav-folder-icon">📁</span>
-            <span>${escapeHtml(formatFolderName(node.name))}</span>
+            <span class="nav-folder-icon">${escapeHtml(getFolderIcon(node))}</span>
+            <span>${escapeHtml(getFolderLabel(node))}</span>
           </div>
           <div class="nav-folder-children">${renderTree(node.children, depth + 1)}</div>
         </div>

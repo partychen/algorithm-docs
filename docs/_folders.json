@@ -1,0 +1,47 @@
+{
+  "basic": {
+    "order": 1,
+    "title": "基础算法",
+    "icon": "🧱"
+  },
+  "data-structure": {
+    "order": 2,
+    "title": "数据结构",
+    "icon": "🏗️"
+  },
+  "search": {
+    "order": 3,
+    "title": "搜索",
+    "icon": "🔍"
+  },
+  "string": {
+    "order": 4,
+    "title": "字符串",
+    "icon": "🔤"
+  },
+  "dp": {
+    "order": 5,
+    "title": "动态规划",
+    "icon": "🧠"
+  },
+  "math": {
+    "order": 6,
+    "title": "数学",
+    "icon": "∑"
+  },
+  "geometry": {
+    "order": 7,
+    "title": "计算几何",
+    "icon": "📐"
+  },
+  "graph": {
+    "order": 8,
+    "title": "图论",
+    "icon": "🕸️"
+  },
+  "immerse": {
+    "order": 9,
+    "title": "沉浸式算法训练",
+    "icon": "🌊"
+  }
+}
