@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>算法文档</title>
 
-<!-- KaTeX for math -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<!-- KaTeX CSS (math is rendered server-side by marked-katex-extension) -->
+<link rel="stylesheet" href="/static/katex/katex.min.css">
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1296,19 +1294,6 @@ async function loadDoc(slug) {
 
   // Scroll to top
   document.getElementById('mainContent').scrollTop = 0;
-
-  // KaTeX render
-  if (window.renderMathInElement) {
-    renderMathInElement(wrap, {
-      delimiters: [
-        { left: '$$', right: '$$', display: true },
-        { left: '$', right: '$', display: false },
-        { left: '\\(', right: '\\)', display: false },
-        { left: '\\[', right: '\\]', display: true }
-      ],
-      throwOnError: false
-    });
-  }
 
   // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');

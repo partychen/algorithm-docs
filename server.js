@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { Marked } = require('marked');
+const markedKatex = require('marked-katex-extension');
 const hljs = require('highlight.js');
 const matter = require('gray-matter');
 
@@ -203,8 +204,11 @@ const marked = new Marked({
   }
 });
 
+marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+
 // ── Static files ─────────────────────────────────────────────
 app.use('/static', express.static(PUBLIC_DIR));
+app.use('/static/katex', express.static(path.join(__dirname, 'node_modules', 'katex', 'dist')));
 
 // ── API: list all docs ───────────────────────────────────────
 app.get('/api/docs', (req, res) => {
