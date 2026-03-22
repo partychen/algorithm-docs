@@ -477,7 +477,6 @@ body {
 .content-wrap {
   max-width: 820px;
   margin: 0 auto;
-  padding: 48px 52px 120px;
 }
 
 /* Welcome */
@@ -1314,8 +1313,8 @@ function renderToc(toc) {
   }
   list.innerHTML = toc.map(item => {
     const cls = item.level === 3 ? 'toc-item level-3' : 'toc-item';
-    const text = item.text.replace(/[*`]/g, '');
-    return `<a class="${cls}" data-id="${item.id}" onclick="scrollToHeading('${item.id}')">${text}</a>`;
+    const content = item.html || escapeHtml(String(item.text || '').replace(/[*`]/g, ''));
+    return `<a class="${cls}" data-id="${item.id}" onclick="scrollToHeading('${item.id}')">${content}</a>`;
   }).join('');
 }
 

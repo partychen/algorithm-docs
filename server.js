@@ -30,10 +30,12 @@ function extractToc(content) {
   for (const line of content.split('\n')) {
     const match = line.match(/^(#{2,3})\s+(.+)/);
     if (!match) continue;
+    const rawText = match[2];
     toc.push({
       level: match[1].length,
-      text: match[2],
-      id: slugifyHeading(match[2])
+      text: rawText,
+      html: marked.parseInline(rawText),
+      id: slugifyHeading(rawText)
     });
   }
   return toc;
