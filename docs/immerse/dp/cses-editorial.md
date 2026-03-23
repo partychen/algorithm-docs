@@ -2,6 +2,7 @@
 title: "CSES Problem Set — DP 专题解题报告"
 subtitle: "🎯 23 道经典 DP 题目的分析方法、解题思路与核心代码"
 order: 2
+icon: "🎯"
 ---
 
 # CSES Problem Set — DP 专题解题报告
