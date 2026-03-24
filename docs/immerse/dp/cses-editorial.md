@@ -1,5 +1,5 @@
 ---
-title: "CSES Problem Set — DP 专题解题报告"
+title: "CSES 经典 DP 解题报告"
 subtitle: "🎯 23 道经典 DP 题目的分析方法、解题思路与核心代码"
 order: 2
 icon: "🎯"
@@ -787,7 +787,7 @@ for (int col = 0; col < m; col++)
 
 ### 复杂度
 
-$O(M \cdot 2^N \cdot \text{转移数})$，其中转移数约为 $O(2^N)$。总共约 $O(M \cdot 3^N)$。
+$O(M \cdot 2^N \cdot T)$，其中转移数 $T$ 约为 $O(2^N)$。总共约 $O(M \cdot 3^N)$。
 
 ---
 

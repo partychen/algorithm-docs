@@ -1,5 +1,5 @@
 ---
-title: "AtCoder Educational DP Contest 解题报告"
+title: "AtCoder 经典 DP 解题报告"
 subtitle: "🏆 26 道经典 DP 题目的分析方法、解题思路与核心代码"
 order: 1
 icon: "🏆"
