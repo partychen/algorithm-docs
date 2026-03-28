@@ -173,7 +173,7 @@ function resolveDocPath(input) {
 // ── Markdown config ──────────────────────────────────────────
 const marked = new Marked({
   gfm: true,
-  breaks: false,
+  breaks: true,
   renderer: {
     heading({ tokens, depth }) {
       const text = this.parser.parseInline(tokens);
