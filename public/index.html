@@ -1105,7 +1105,8 @@ function getFolderIcon(node) {
   return node.meta?.icon || '📁';
 }
 
-function cleanTitle(title) {
+function cleanTitle(title, meta) {
+  if (meta?.title) return meta.title;
   let short = title
     .replace(/\r/g, '')
     .replace(/（.*?）/g, '')
@@ -1149,13 +1150,16 @@ function buildDocTree(items) {
       current = folder;
     });
 
-    current.children.push({ type: 'doc', doc });
+    current.children.push({ type: 'doc', doc, meta: getFolderMeta(doc.slug) });
   });
 
   return sortTreeNodes(root.children);
 }
 
 function getDocOrderValue(doc) {
+  // Check folderMeta first (from _folders.json in the doc's directory)
+  const metaOrder = folderMeta[doc.slug]?.order;
+  if (typeof metaOrder === 'number' && Number.isFinite(metaOrder)) return metaOrder;
   const value = Number(doc.order);
   return Number.isFinite(value) ? value : null;
 }
@@ -1218,11 +1222,11 @@ function sortTreeNodes(nodes) {
         );
         if (slugCompare !== 0) return slugCompare;
 
-        return cleanTitle(a.doc.title).localeCompare(cleanTitle(b.doc.title), 'zh-CN');
+        return cleanTitle(a.doc.title, a.meta).localeCompare(cleanTitle(b.doc.title, b.meta), 'zh-CN');
       }
 
-      const aLabel = a.type === 'folder' ? getFolderLabel(a) : cleanTitle(a.doc.title);
-      const bLabel = b.type === 'folder' ? getFolderLabel(b) : cleanTitle(b.doc.title);
+      const aLabel = a.type === 'folder' ? getFolderLabel(a) : cleanTitle(a.doc.title, a.meta);
+      const bLabel = b.type === 'folder' ? getFolderLabel(b) : cleanTitle(b.doc.title, b.meta);
       return aLabel.localeCompare(bLabel, 'zh-CN');
     })
     .map(node => node.type === 'folder'
@@ -1247,7 +1251,7 @@ function renderTree(nodes, depth = 0) {
     }
 
     const doc = node.doc;
-    const short = cleanTitle(doc.title);
+    const short = cleanTitle(doc.title, node.meta);
     return `
       <button class="nav-item" style="--depth:${depth}" data-slug="${encodeURIComponent(doc.slug)}" title="${escapeAttribute(doc.title)}">
         <span class="nav-icon">${getDocIcon(doc)}</span>

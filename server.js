@@ -106,30 +106,42 @@ function normalizeFolderMeta(relativePath, value) {
   return meta;
 }
 
-function getFolderMetaMap() {
-  const metaPath = path.join(DOCS_DIR, FOLDERS_META_FILENAME);
-  if (!fs.existsSync(metaPath)) {
-    return {};
-  }
+function readFoldersJsonFile(filePath, prefix) {
+  if (!fs.existsSync(filePath)) return {};
 
-  const raw = fs.readFileSync(metaPath, 'utf-8');
+  const raw = fs.readFileSync(filePath, 'utf-8');
   const data = JSON.parse(raw);
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error(`${FOLDERS_META_FILENAME} must be a JSON object.`);
+    throw new Error(`${filePath} must be a JSON object.`);
   }
 
-  return Object.entries(data).reduce((acc, [folderPath, value]) => {
-    const normalizedPath = String(folderPath)
-      .trim()
-      .replace(/\\/g, '/')
-      .replace(/^\/+|\/+$/g, '');
-    if (!normalizedPath) {
-      return acc;
-    }
-
-    acc[normalizedPath] = normalizeFolderMeta(normalizedPath, value);
+  return Object.entries(data).reduce((acc, [key, value]) => {
+    const normalizedKey = String(key).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (!normalizedKey) return acc;
+    const fullPath = prefix ? `${prefix}/${normalizedKey}` : normalizedKey;
+    acc[fullPath] = normalizeFolderMeta(fullPath, value);
     return acc;
   }, {});
+}
+
+function getFolderMetaMap() {
+  const result = {};
+
+  function scanDir(dirPath, prefix) {
+    const metaPath = path.join(dirPath, FOLDERS_META_FILENAME);
+    Object.assign(result, readFoldersJsonFile(metaPath, prefix));
+
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const childPrefix = prefix ? `${prefix}/${entry.name}` : entry.name;
+        scanDir(path.join(dirPath, entry.name), childPrefix);
+      }
+    }
+  }
+
+  scanDir(DOCS_DIR, '');
+  return result;
 }
 
 function getDocs() {

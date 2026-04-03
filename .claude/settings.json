@@ -4,7 +4,8 @@
       "WebSearch",
       "Read(//Users/chenjunkui/Project/Competition/VsCode/**)",
       "Edit(/.claude/skills/interview/**)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(kill 60213)"
     ],
     "additionalDirectories": [
       "/Users/chenjunkui/Project/algorithm-docs/docs/immerse"
