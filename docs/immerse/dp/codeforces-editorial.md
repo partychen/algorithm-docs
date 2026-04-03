@@ -1,11 +1,11 @@
 ---
-title: "Codeforces 经典 DP 解题报告"
+title: "Codeforces 经典DP专题精选解题报告"
 subtitle: "⚡ 36 道 Codeforces 经典 DP 题目的分析方法、解题思路与核心代码"
 order: 5
 icon: "⚡"
 ---
 
-# Codeforces 经典 DP 解题报告
+# Codeforces 经典DP专题精选解题报告
 
 > 来源：[Codeforces](https://codeforces.com/)
 >

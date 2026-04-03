@@ -27,15 +27,19 @@ function parseDoc(filePath) {
 
 function extractToc(content) {
   const toc = [];
+  const idCount = {};
   for (const line of content.split('\n')) {
     const match = line.match(/^(#{2,3})\s+(.+)/);
     if (!match) continue;
     const rawText = match[2];
+    let id = slugifyHeading(rawText);
+    idCount[id] = (idCount[id] || 0) + 1;
+    if (idCount[id] > 1) id = id + '-' + (idCount[id] - 1);
     toc.push({
       level: match[1].length,
       text: rawText,
       html: marked.parseInline(rawText),
-      id: slugifyHeading(rawText)
+      id
     });
   }
   return toc;
@@ -171,6 +175,8 @@ function resolveDocPath(input) {
 }
 
 // ── Markdown config ──────────────────────────────────────────
+let headingIdCount = {};
+
 const marked = new Marked({
   gfm: true,
   breaks: true,
@@ -178,7 +184,9 @@ const marked = new Marked({
     heading({ tokens, depth }) {
       const text = this.parser.parseInline(tokens);
       const raw = tokens.map(token => token.raw || token.text || '').join('');
-      const id = slugifyHeading(raw);
+      let id = slugifyHeading(raw);
+      headingIdCount[id] = (headingIdCount[id] || 0) + 1;
+      if (headingIdCount[id] > 1) id = id + '-' + (headingIdCount[id] - 1);
       return `<h${depth} id="${id}">${text}<a class="header-anchor" href="#${id}" aria-hidden="true"></a></h${depth}>`;
     },
     code({ text, lang }) {
@@ -232,10 +240,25 @@ app.get('/api/doc', (req, res) => {
   }
 
   const info = getDocInfo(filePath);
+  headingIdCount = {};
+  let html = marked.parse(content);
+
+  // Move tag-only paragraphs (containing only inline-code) into the preceding h2 as badges
+  html = html.replace(
+    /(<h2\b[^>]*>)([\s\S]*?)(<a class="header-anchor"[\s\S]*?<\/a>)(<\/h2>)\s*<p>((?:\s*<code class="inline-code">[\s\S]*?<\/code>\s*)+)<\/p>/g,
+    (_, open, text, anchor, close, codes) => {
+      const badges = codes.replace(
+        /<code class="inline-code">([\s\S]*?)<\/code>/g,
+        '<span class="tag-badge">$1</span>'
+      );
+      return `${open}${text}<span class="tag-badges">${badges}</span>${anchor}${close}`;
+    }
+  );
+
   res.json({
     ...info,
     ...getDocMeta(frontmatter, info.basename),
-    html: marked.parse(content),
+    html,
     toc: extractToc(content),
     raw
   });

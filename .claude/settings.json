@@ -3,7 +3,8 @@
     "allow": [
       "WebSearch",
       "Read(//Users/chenjunkui/Project/Competition/VsCode/**)",
-      "Edit(/.claude/skills/interview/**)"
+      "Edit(/.claude/skills/interview/**)",
+      "Bash(xargs kill:*)"
     ],
     "additionalDirectories": [
       "/Users/chenjunkui/Project/algorithm-docs/docs/immerse"

@@ -1,11 +1,11 @@
 ---
-title: "CSES 经典 DP 解题报告"
+title: "CSES 经典DP专题精选解题报告"
 subtitle: "🎯 23 道经典 DP 题目的分析方法、解题思路与核心代码"
 order: 2
 icon: "🎯"
 ---
 
-# CSES Problem Set — DP 专题解题报告
+# CSES 经典DP专题精选解题报告
 
 > 来源：[CSES Problem Set](https://cses.fi/problemset/)
 >

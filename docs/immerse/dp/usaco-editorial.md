@@ -1,11 +1,11 @@
 ---
-title: "USACO 经典 DP 解题报告"
+title: "USACO 经典DP专题精选解题报告"
 subtitle: "🐄 36 道 USACO 经典 DP 题目的分析方法、解题思路与核心代码"
 order: 7
 icon: "🐄"
 ---
 
-# USACO 经典 DP 解题报告
+# USACO 经典DP专题精选解题报告
 
 > 来源：[USACO](https://usaco.org/)
 >

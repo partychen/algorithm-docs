@@ -1,11 +1,11 @@
 ---
-title: "UVa 经典 DP 解题报告"
+title: "UVa 经典DP专题精选解题报告"
 subtitle: "🌐 36 道 UVa 经典 DP 题目的分析方法、解题思路与核心代码"
 order: 8
 icon: "🌐"
 ---
 
-# UVa 经典 DP 解题报告
+# UVa 经典DP专题精选解题报告
 
 > 来源：[UVa Online Judge](https://onlinejudge.org/)
 >

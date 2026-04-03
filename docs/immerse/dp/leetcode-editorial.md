@@ -1,11 +1,11 @@
 ---
-title: "LeetCode 经典 DP 解题报告"
+title: "LeetCode 经典DP专题精选解题报告"
 subtitle: "💡 36 道 LeetCode 经典 DP 题目的分析方法、解题思路与核心代码"
 order: 3
 icon: "💡"
 ---
 
-# LeetCode 经典 DP 解题报告
+# LeetCode 经典DP专题精选解题报告
 
 > 来源：[LeetCode](https://leetcode.com/)
 >
