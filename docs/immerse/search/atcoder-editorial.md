@@ -2,7 +2,7 @@
 title: "AtCoder 搜索专题精选解题报告"
 subtitle: "🏆 26 道经典搜索题目的分析方法、解题思路与核心代码"
 order: 1
-icon: "🏆"
+icon: "🎌"
 ---
 
 # AtCoder 搜索专题精选解题报告

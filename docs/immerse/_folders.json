@@ -6,7 +6,7 @@
   },
   "search": {
     "order": 2,
-    "title": "搜索",
+    "title": "排序与查找",
     "icon": "🔍"
   },
   "string": {
@@ -34,8 +34,13 @@
     "title": "图论",
     "icon": "🕸️"
   },
-  "interview": {
+  "comprehensive": {
     "order": 8,
+    "title": "综合专题",
+    "icon": "🧭"
+  },
+  "interview": {
+    "order": 9,
     "title": "面试专题",
     "icon": "💼"
   }
