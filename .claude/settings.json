@@ -5,7 +5,8 @@
       "Read(//Users/chenjunkui/Project/Competition/VsCode/**)",
       "Edit(/.claude/skills/interview/**)",
       "Bash(xargs kill:*)",
-      "Bash(kill 60213)"
+      "Bash(kill 60213)",
+      "Bash(PORT=3456 node server.js)"
     ],
     "additionalDirectories": [
       "/Users/chenjunkui/Project/algorithm-docs/docs/immerse"

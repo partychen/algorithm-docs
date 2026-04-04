@@ -1,7 +1,7 @@
 ---
 title: "CSES 位运算专题精选解题报告"
 subtitle: "⚙️ 从按位统计到线性基、SOS DP 与异或金字塔的位运算主线"
-order: 9
+order: 7
 icon: "🧮"
 ---
 
