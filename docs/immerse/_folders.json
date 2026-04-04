@@ -39,8 +39,13 @@
     "title": "综合专题",
     "icon": "🧭"
   },
-  "interview": {
+  "noip": {
     "order": 9,
+    "title": "NOIP 年代题",
+    "icon": "🏁"
+  },
+  "interview": {
+    "order": 10,
     "title": "面试专题",
     "icon": "💼"
   }

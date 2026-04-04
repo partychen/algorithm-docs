@@ -364,6 +364,14 @@ body {
   text-align: center;
 }
 
+.nav-item .nav-icon.nav-icon-year {
+  width: 38px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 .nav-item .nav-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1123,6 +1131,10 @@ function getDocIcon(doc) {
   return doc.icon || '📄';
 }
 
+function getDocIconClass(doc) {
+  return /^\d{4}$/.test(doc.icon || '') ? ' nav-icon-year' : '';
+}
+
 function buildDocTree(items) {
   const root = { type: 'folder', children: [] };
 
@@ -1254,7 +1266,7 @@ function renderTree(nodes, depth = 0) {
     const short = cleanTitle(doc.title, node.meta);
     return `
       <button class="nav-item" style="--depth:${depth}" data-slug="${encodeURIComponent(doc.slug)}" title="${escapeAttribute(doc.title)}">
-        <span class="nav-icon">${getDocIcon(doc)}</span>
+        <span class="nav-icon${getDocIconClass(doc)}">${getDocIcon(doc)}</span>
         <span class="nav-label">${escapeHtml(short)}</span>
       </button>
     `;
