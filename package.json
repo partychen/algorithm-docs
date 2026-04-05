@@ -1,5 +1,5 @@
 {
-  "name": "docs-reader",
+  "name": "algorithm-docs-reader",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -12,11 +12,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@iktakahiro/markdown-it-katex": "^4.0.1",
     "express": "^5.2.1",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
-    "marked": "^17.0.4",
-    "marked-katex-extension": "^5.1.7",
-    "playwright": "^1.59.1"
+    "markdown-it": "^14.1.1"
   }
 }

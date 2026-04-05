@@ -1,8 +1,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { Marked } = require('marked');
-const markedKatex = require('marked-katex-extension');
+const MarkdownIt = require('markdown-it');
+const mk = require('@iktakahiro/markdown-it-katex');
 const hljs = require('highlight.js');
 const matter = require('gray-matter');
 
@@ -38,7 +38,7 @@ function extractToc(content) {
     toc.push({
       level: match[1].length,
       text: rawText,
-      html: marked.parseInline(rawText),
+      html: md.renderInline(rawText),
       id
     });
   }
@@ -189,44 +189,69 @@ function resolveDocPath(input) {
 // ── Markdown config ──────────────────────────────────────────
 let headingIdCount = {};
 
-const marked = new Marked({
-  gfm: true,
+const md = new MarkdownIt({
+  html: true,
   breaks: true,
-  renderer: {
-    heading({ tokens, depth }) {
-      const text = this.parser.parseInline(tokens);
-      const raw = tokens.map(token => token.raw || token.text || '').join('');
-      let id = slugifyHeading(raw);
-      headingIdCount[id] = (headingIdCount[id] || 0) + 1;
-      if (headingIdCount[id] > 1) id = id + '-' + (headingIdCount[id] - 1);
-      return `<h${depth} id="${id}">${text}<a class="header-anchor" href="#${id}" aria-hidden="true"></a></h${depth}>`;
-    },
-    code({ text, lang }) {
-      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-      const highlighted = hljs.highlight(text, { language }).value;
-      return `<div class="code-block"><div class="code-header"><span class="code-lang">${language}</span><button class="copy-btn" onclick="copyCode(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div><pre><code class="hljs language-${language}">${highlighted}</code></pre></div>`;
-    },
-    table({ header, rows }) {
-      const headerCells = header.map(cell => {
-        const content = this.parser.parseInline(cell.tokens);
-        return `<th>${content}</th>`;
-      }).join('');
-      const bodyRows = rows.map(row => {
-        const cells = row.map(cell => {
-          const content = this.parser.parseInline(cell.tokens);
-          return `<td>${content}</td>`;
-        }).join('');
-        return `<tr>${cells}</tr>`;
-      }).join('');
-      return `<div class="table-wrap"><table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
-    },
-    codespan({ text }) {
-      return `<code class="inline-code">${text}</code>`;
-    }
+  highlight(str, lang) {
+    const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+    return hljs.highlight(str, { language }).value;
   }
 });
+md.use(mk, { throwOnError: false });
 
-marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+// Custom heading: id + anchor link
+md.renderer.rules.heading_open = (tokens, idx) => {
+  const token = tokens[idx];
+  const level = token.tag; // h1, h2, etc.
+  // Get inline content for slug
+  const inlineToken = tokens[idx + 1];
+  const rawText = inlineToken ? inlineToken.children.map(t => t.content).join('') : '';
+  let id = slugifyHeading(rawText);
+  headingIdCount[id] = (headingIdCount[id] || 0) + 1;
+  if (headingIdCount[id] > 1) id = id + '-' + (headingIdCount[id] - 1);
+  token.attrSet('id', id);
+  token.attrSet('data-id', id);
+  return `<${level} id="${id}">`;
+};
+
+md.renderer.rules.heading_close = (tokens, idx) => {
+  const level = tokens[idx].tag;
+  // Find the matching heading_open to get the id
+  let id = '';
+  for (let i = idx - 1; i >= 0; i--) {
+    if (tokens[i].type === 'heading_open') {
+      id = tokens[i].attrGet('id') || '';
+      break;
+    }
+  }
+  return `<a class="header-anchor" href="#${id}" aria-hidden="true"></a></${level}>`;
+};
+
+// Custom fence: code block with language label + copy button
+md.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx];
+  const lang = token.info.trim();
+  const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+  const highlighted = hljs.highlight(token.content, { language }).value;
+  return `<div class="code-block"><div class="code-header"><span class="code-lang">${language}</span><button class="copy-btn" onclick="copyCode(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div><pre><code class="hljs language-${language}">${highlighted}</code></pre></div>`;
+};
+
+// Custom table: wrap with div.table-wrap
+const defaultTableOpen = md.renderer.rules.table_open || ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+md.renderer.rules.table_open = (tokens, idx, options, env, self) => {
+  return '<div class="table-wrap">' + defaultTableOpen(tokens, idx, options, env, self);
+};
+
+const defaultTableClose = md.renderer.rules.table_close || ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+md.renderer.rules.table_close = (tokens, idx, options, env, self) => {
+  return defaultTableClose(tokens, idx, options, env, self) + '</div>';
+};
+
+// Custom inline code: add class="inline-code"
+md.renderer.rules.code_inline = (tokens, idx) => {
+  const token = tokens[idx];
+  return `<code class="inline-code">${md.utils.escapeHtml(token.content)}</code>`;
+};
 
 // ── Static files ─────────────────────────────────────────────
 app.use('/static', express.static(PUBLIC_DIR));
@@ -253,7 +278,7 @@ app.get('/api/doc', (req, res) => {
 
   const info = getDocInfo(filePath);
   headingIdCount = {};
-  let html = marked.parse(content);
+  let html = md.render(content);
 
   // Move tag-only paragraphs (containing only inline-code) into the preceding h2 as badges
   html = html.replace(
