@@ -32,7 +32,9 @@ function extractToc(content) {
     const match = line.match(/^(#{2,3})\s+(.+)/);
     if (!match) continue;
     const rawText = match[2];
-    let id = slugifyHeading(rawText);
+    // Strip markdown links [text](url) → text to match heading renderer's t.content behavior
+    const textForId = rawText.replace(/\[([\s\S]*?)\]\([^)]*\)/g, '$1');
+    let id = slugifyHeading(textForId);
     idCount[id] = (idCount[id] || 0) + 1;
     if (idCount[id] > 1) id = id + '-' + (idCount[id] - 1);
     toc.push({
