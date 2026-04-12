@@ -11,6 +11,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const DOCS_DIR = path.join(__dirname, 'docs');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const FOLDERS_META_FILENAME = '_folders.json';
+const STATIC_MAX_AGE = '1d';
 
 function slugifyHeading(text) {
   return text
@@ -189,8 +190,6 @@ function resolveDocPath(input) {
 }
 
 // ── Markdown config ──────────────────────────────────────────
-let headingIdCount = {};
-
 const md = new MarkdownIt({
   html: true,
   breaks: true,
@@ -202,15 +201,16 @@ const md = new MarkdownIt({
 md.use(mk, { throwOnError: false });
 
 // Custom heading: id + anchor link
-md.renderer.rules.heading_open = (tokens, idx) => {
+// headingIdCount is passed per-render via env to avoid shared mutable state.
+md.renderer.rules.heading_open = (tokens, idx, options, env) => {
+  const idCount = env.headingIdCount;
   const token = tokens[idx];
-  const level = token.tag; // h1, h2, etc.
-  // Get inline content for slug
+  const level = token.tag;
   const inlineToken = tokens[idx + 1];
   const rawText = inlineToken ? inlineToken.children.map(t => t.content).join('') : '';
   let id = slugifyHeading(rawText);
-  headingIdCount[id] = (headingIdCount[id] || 0) + 1;
-  if (headingIdCount[id] > 1) id = id + '-' + (headingIdCount[id] - 1);
+  idCount[id] = (idCount[id] || 0) + 1;
+  if (idCount[id] > 1) id = id + '-' + (idCount[id] - 1);
   token.attrSet('id', id);
   token.attrSet('data-id', id);
   return `<${level} id="${id}">`;
@@ -255,13 +255,63 @@ md.renderer.rules.code_inline = (tokens, idx) => {
   return `<code class="inline-code">${md.utils.escapeHtml(token.content)}</code>`;
 };
 
+function renderMarkdown(content) {
+  const env = { headingIdCount: {} };
+  return md.render(content, env);
+}
+
+// ── In-memory cache with fs.watch invalidation ───────────────
+let docsPayloadCache = null;
+let parsedDocsCache = null;
+
+function invalidateCache() {
+  docsPayloadCache = null;
+  parsedDocsCache = null;
+}
+
+function getCachedDocsPayload() {
+  if (!docsPayloadCache) {
+    docsPayloadCache = getDocsPayload();
+  }
+  return docsPayloadCache;
+}
+
+function getCachedParsedDocs() {
+  if (!parsedDocsCache) {
+    parsedDocsCache = listMarkdownFiles(DOCS_DIR).map(filePath => {
+      const { frontmatter, content } = parseDoc(filePath);
+      const info = getDocInfo(filePath);
+      const meta = getDocMeta(frontmatter, info.basename);
+      return { filePath, info, meta, content };
+    });
+  }
+  return parsedDocsCache;
+}
+
+// Debounce fs.watch events to avoid cache thrashing on rapid changes
+let invalidateTimer = null;
+function scheduleInvalidation() {
+  if (invalidateTimer) clearTimeout(invalidateTimer);
+  invalidateTimer = setTimeout(() => {
+    invalidateCache();
+    invalidateTimer = null;
+  }, 100);
+}
+
+try {
+  fs.watch(DOCS_DIR, { recursive: true }, scheduleInvalidation);
+} catch {
+  // fs.watch may fail on some platforms; fall back to no caching
+  // (getDocsPayload / getParsedDocs will re-read each time)
+}
+
 // ── Static files ─────────────────────────────────────────────
-app.use('/static', express.static(PUBLIC_DIR));
-app.use('/static/katex', express.static(path.join(__dirname, 'node_modules', 'katex', 'dist')));
+app.use('/static', express.static(PUBLIC_DIR, { maxAge: STATIC_MAX_AGE }));
+app.use('/static/katex', express.static(path.join(__dirname, 'node_modules', 'katex', 'dist'), { maxAge: STATIC_MAX_AGE, immutable: true }));
 
 // ── API: list all docs ───────────────────────────────────────
 app.get('/api/docs', (req, res) => {
-  res.json(getDocsPayload());
+  res.json(getCachedDocsPayload());
 });
 
 // ── API: get single doc ──────────────────────────────────────
@@ -279,8 +329,7 @@ app.get('/api/doc', (req, res) => {
   }
 
   const info = getDocInfo(filePath);
-  headingIdCount = {};
-  let html = md.render(content);
+  let html = renderMarkdown(content);
 
   // Move tag-only paragraphs (containing only inline-code) into the preceding h2 as badges
   html = html.replace(
@@ -311,23 +360,21 @@ app.get('/api/search', (req, res) => {
   }
 
   const results = [];
-  for (const filePath of listMarkdownFiles(DOCS_DIR)) {
-    const { frontmatter, content } = parseDoc(filePath);
-    const lowerContent = content.toLowerCase();
+  for (const doc of getCachedParsedDocs()) {
+    const lowerContent = doc.content.toLowerCase();
     const matchIndex = lowerContent.indexOf(query);
     if (matchIndex === -1) continue;
 
-    const info = getDocInfo(filePath);
     const start = Math.max(0, matchIndex - 40);
-    const end = Math.min(content.length, matchIndex + query.length + 80);
+    const end = Math.min(doc.content.length, matchIndex + query.length + 80);
     const snippet = (start > 0 ? '...' : '')
-      + content.slice(start, end).replace(/\n/g, ' ')
-      + (end < content.length ? '...' : '');
+      + doc.content.slice(start, end).replace(/\n/g, ' ')
+      + (end < doc.content.length ? '...' : '');
 
     results.push({
-      slug: info.slug,
-      section: info.section,
-      title: getDocMeta(frontmatter, info.basename).title,
+      slug: doc.info.slug,
+      section: doc.info.section,
+      title: doc.meta.title,
       snippet,
       matchIndex
     });
