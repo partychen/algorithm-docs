@@ -1081,6 +1081,12 @@ async function init() {
   const hash = decodeURIComponent(location.hash.slice(1));
   if (hash) loadDoc(hash);
 
+  // Handle hash changes (e.g. clicking internal doc links)
+  window.addEventListener('hashchange', () => {
+    const newHash = decodeURIComponent(location.hash.slice(1));
+    if (newHash && newHash !== currentSlug) loadDoc(newHash);
+  });
+
   // Keyboard
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {

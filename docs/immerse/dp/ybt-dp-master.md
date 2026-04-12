@@ -188,7 +188,7 @@ for (int i = n - 1; i >= 1; i--)
       }
       f[i][l][r] = worst;
     }
-ans = min_{c=1..m} f[1][c][c];
+ans = min { f[1][c][c] }   // c = 1..m
 ```
 
 ### 复杂度
